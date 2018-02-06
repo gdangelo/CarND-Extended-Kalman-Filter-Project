@@ -19,7 +19,7 @@ VectorXd Tools::CalculateRMSE(const vector<VectorXd> &estimations,
 	//  * the estimation vector size should not be zero
 	//  * the estimation vector size should equal ground truth vector size
   if(estimations.size() == 0 || estimations.size() != ground_truth.size()){
-    cout << "CalculateRMSE - Error - Invalid inputs." << endl;
+    cout << "CalculateRMSE() - Error - Invalid inputs." << endl;
     return rmse;
   }
 
@@ -40,8 +40,29 @@ VectorXd Tools::CalculateRMSE(const vector<VectorXd> &estimations,
 }
 
 MatrixXd Tools::CalculateJacobian(const VectorXd& x_state) {
-  /**
-  TODO:
-    * Calculate a Jacobian here.
-  */
+  // Initialize Hj matrix
+  MatrixXd Hj(3, 4);
+
+  // Get state parameters
+  float px = x_state(0);
+  float py = x_state(1);
+  float vx = x_state(2);
+  float vy = x_state(3);
+
+  float d1 = px*px + py*py;
+  float d2 = sqrt(d1);
+  float d3 = d1*d2;
+
+  // Make sure we don't divide by zero
+  if(d1 == 0){
+    cout << "CalculateJacobian() - Error - Divison by zero." << endl;
+  }
+  // Compute Jacobian matrix
+  else{
+    Hj << px/d2, py/d2, 0, 0,
+          -py/d1, px/d1, 0, 0,
+          py*(vx*py - vy*px), px*(vy*px - vx*py), px/d2, py/d2;
+  }
+
+  return Hj;
 }
