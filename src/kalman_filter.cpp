@@ -1,5 +1,5 @@
 #include "kalman_filter.h"
-#include "tools.h"
+#include <iostream>
 
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
@@ -25,7 +25,7 @@ void KalmanFilter::Predict() {
   // Predict the state after delta_T
   x_ = F_*x_;
   // Update the State Covariance Matrix P (uncertainty)
-  VectorXd Ft = F_.transpose();
+  MatrixXd Ft = F_.transpose();
   P_ = F_*P_*Ft + Q_;
 }
 
@@ -35,7 +35,8 @@ void KalmanFilter::Update(const VectorXd &z) {
   MatrixXd S = H_*P_*Ht + R_;
   MatrixXd Si = S.inverse();
   MatrixXd K = P_*Ht*Si;
-  MatrixXd I = MatrixXd::Identity(4, 4);
+  long x_size = x_.size();
+  MatrixXd I = MatrixXd::Identity(x_size, x_size);
 
   // Update
   x_ = x_ + K*y;
@@ -46,21 +47,31 @@ void KalmanFilter::UpdateEKF(const VectorXd &z) {
   // Use the equations that map the predicted location
   // from Cartesian coordinates to polar coordinates
   VectorXd hx(3);
-  hx << sqrt(x_(0)*x_(0) + x_(1)*x_(1)),
-                 atan(x_(1)/x_(0)),
-                 (x_(0)*x_(2) + x_(1)*x_(3))/hx(0);
+
+  float ro = sqrt(x_(0)*x_(0) + x_(1)*x_(1));
+  float theta = atan2(x_(1), x_(0));
+  float ro_dot;
+  if (fabs(ro) < 0.0001){
+    ro_dot = 0;
+  }
+  else{
+    ro_dot = (x_(0)*x_(2) + x_(1)*x_(3))/ro;
+  }
+  hx << ro, theta, ro_dot;
 
   VectorXd y = z - hx;
+  // Angle normalization --> [-pi; pi]
+  y[1] = atan2(sin(y[1]), cos(y[1]));
 
-  Tools tools;
-  MatrixXd Hj = tools.CalculateJacobian(x_);
-  MatrixXd Ht = Hj.transpose();
-  MatrixXd S = Hj*P_*Ht + R_;
+  MatrixXd Ht = H_.transpose();
+  MatrixXd S = H_*P_*Ht + R_;
   MatrixXd Si = S.inverse();
-  MatrixXd K = P_*Ht*Si;
-  MatrixXd I = MatrixXd::Identity(4, 4);
+  MatrixXd PHt = P_*Ht;
+  MatrixXd K = PHt*Si;
+  long x_size = x_.size();
+  MatrixXd I = MatrixXd::Identity(x_size, x_size);
 
   // Update
   x_ = x_ + K*y;
-  P_ = (I - K*Hj)*P_;
+  P_ = (I - K*H_)*P_;
 }

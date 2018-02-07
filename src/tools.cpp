@@ -54,15 +54,15 @@ MatrixXd Tools::CalculateJacobian(const VectorXd& x_state) {
   float d3 = d1*d2;
 
   // Make sure we don't divide by zero
-  if(d1 == 0){
+  if(fabs(d1) < 0.0001){
     cout << "CalculateJacobian() - Error - Divison by zero." << endl;
+    return Hj;
   }
+
   // Compute Jacobian matrix
-  else{
-    Hj << px/d2, py/d2, 0, 0,
-          -py/d1, px/d1, 0, 0,
-          py*(vx*py - vy*px), px*(vy*px - vx*py), px/d2, py/d2;
-  }
+  Hj << px/d2, py/d2, 0, 0,
+        -py/d1, px/d1, 0, 0,
+        py*(vx*py - vy*px)/d3, px*(vy*px - vx*py)/d3, px/d2, py/d2;
 
   return Hj;
 }
