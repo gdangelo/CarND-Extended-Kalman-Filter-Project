@@ -25,8 +25,26 @@ std::string hasData(std::string s) {
   return "";
 }
 
-int main()
+int main(int argc, char *argv[])
 {
+  std::string data_to_process = "B"; // by default use both ('B') sensors
+  int opt;
+
+  // Read command args to select sensor type to use
+  while ((opt = getopt(argc, argv, "d:")) != EOF) {
+    switch (opt) {
+      case 'd':
+        if (strcmp(optarg, "R") == 0 || strcmp(optarg, "L") == 0) {
+          data_to_process = optarg;
+        }
+        break;
+      case '?':
+        fprintf(stderr, "Usuage is \n -d <value>: for choosing sensor type to proceed ('RADAR' or 'LASER').");
+      default:
+        abort();
+    }
+  }
+
   uWS::Hub h;
 
   // Create a Kalman Filter instance
@@ -37,7 +55,7 @@ int main()
   vector<VectorXd> estimations;
   vector<VectorXd> ground_truth;
 
-  h.onMessage([&fusionEKF,&tools,&estimations,&ground_truth](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
+  h.onMessage([&data_to_process,&fusionEKF,&tools,&estimations,&ground_truth](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
@@ -59,24 +77,26 @@ int main()
 
           MeasurementPackage meas_package;
           istringstream iss(sensor_measurment);
-    	  long long timestamp;
+      	  long long timestamp;
 
-    	  // reads first element from the current line
-    	  string sensor_type;
-    	  iss >> sensor_type;
+      	  // reads first element from the current line
+      	  string sensor_type;
+      	  iss >> sensor_type;
 
-    	  if (sensor_type.compare("L") == 0) {
-      	  		meas_package.sensor_type_ = MeasurementPackage::LASER;
-          		meas_package.raw_measurements_ = VectorXd(2);
-          		float px;
-      	  		float py;
-          		iss >> px;
-          		iss >> py;
-          		meas_package.raw_measurements_ << px, py;
-          		iss >> timestamp;
-          		meas_package.timestamp_ = timestamp;
-          } else if (sensor_type.compare("R") == 0) {
 
+
+      	  if (sensor_type.compare("L") == 0) {
+    	  		meas_package.sensor_type_ = MeasurementPackage::LASER;
+        		meas_package.raw_measurements_ = VectorXd(2);
+        		float px;
+    	  		float py;
+        		iss >> px;
+        		iss >> py;
+        		meas_package.raw_measurements_ << px, py;
+        		iss >> timestamp;
+        		meas_package.timestamp_ = timestamp;
+          }
+          else if (sensor_type.compare("R") == 0) {
       	  		meas_package.sensor_type_ = MeasurementPackage::RADAR;
           		meas_package.raw_measurements_ = VectorXd(3);
           		float ro;
@@ -88,42 +108,44 @@ int main()
           		meas_package.raw_measurements_ << ro,theta, ro_dot;
           		iss >> timestamp;
           		meas_package.timestamp_ = timestamp;
-          }
+            }
+
           float x_gt;
-    	  float y_gt;
-    	  float vx_gt;
-    	  float vy_gt;
-    	  iss >> x_gt;
-    	  iss >> y_gt;
-    	  iss >> vx_gt;
-    	  iss >> vy_gt;
-    	  VectorXd gt_values(4);
-    	  gt_values(0) = x_gt;
-    	  gt_values(1) = y_gt;
-    	  gt_values(2) = vx_gt;
-    	  gt_values(3) = vy_gt;
-    	  ground_truth.push_back(gt_values);
+      	  float y_gt;
+      	  float vx_gt;
+      	  float vy_gt;
+      	  iss >> x_gt;
+      	  iss >> y_gt;
+      	  iss >> vx_gt;
+      	  iss >> vy_gt;
+      	  VectorXd gt_values(4);
+      	  gt_values(0) = x_gt;
+      	  gt_values(1) = y_gt;
+      	  gt_values(2) = vx_gt;
+      	  gt_values(3) = vy_gt;
+      	  ground_truth.push_back(gt_values);
 
-          //Call ProcessMeasurment(meas_package) for Kalman filter
-    	  fusionEKF.ProcessMeasurement(meas_package);
+          if(data_to_process == "B" || sensor_type == data_to_process) {
+            //Call ProcessMeasurment(meas_package) for Kalman filter
+        	  fusionEKF.ProcessMeasurement(meas_package);
+          }
 
-    	  //Push the current estimated x,y positon from the Kalman filter's state vector
+      	  //Push the current estimated x,y positon from the Kalman filter's state vector
+      	  VectorXd estimate(4);
 
-    	  VectorXd estimate(4);
+      	  double p_x = fusionEKF.ekf_.x_(0);
+      	  double p_y = fusionEKF.ekf_.x_(1);
+      	  double v1  = fusionEKF.ekf_.x_(2);
+      	  double v2 = fusionEKF.ekf_.x_(3);
 
-    	  double p_x = fusionEKF.ekf_.x_(0);
-    	  double p_y = fusionEKF.ekf_.x_(1);
-    	  double v1  = fusionEKF.ekf_.x_(2);
-    	  double v2 = fusionEKF.ekf_.x_(3);
+      	  estimate(0) = p_x;
+      	  estimate(1) = p_y;
+      	  estimate(2) = v1;
+      	  estimate(3) = v2;
 
-    	  estimate(0) = p_x;
-    	  estimate(1) = p_y;
-    	  estimate(2) = v1;
-    	  estimate(3) = v2;
+      	  estimations.push_back(estimate);
 
-    	  estimations.push_back(estimate);
-
-    	  VectorXd RMSE = tools.CalculateRMSE(estimations, ground_truth);
+      	  VectorXd RMSE = tools.CalculateRMSE(estimations, ground_truth);
 
           json msgJson;
           msgJson["estimate_x"] = p_x;
@@ -135,15 +157,12 @@ int main()
           auto msg = "42[\"estimate_marker\"," + msgJson.dump() + "]";
           // std::cout << msg << std::endl;
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
-
         }
       } else {
-
         std::string msg = "42[\"manual\",{}]";
         ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
       }
     }
-
   });
 
   // We don't need this since we're not using HTTP but if it's removed the program
