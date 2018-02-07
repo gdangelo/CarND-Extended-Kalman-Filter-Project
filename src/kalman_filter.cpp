@@ -29,8 +29,7 @@ void KalmanFilter::Predict() {
   P_ = F_*P_*Ft + Q_;
 }
 
-void KalmanFilter::Update(const VectorXd &z) {
-  VectorXd y = z - H_*x_;
+void KalmanFilter::DoUpdate(const VectorXd &y) {
   MatrixXd Ht = H_.transpose();
   MatrixXd S = H_*P_*Ht + R_;
   MatrixXd Si = S.inverse();
@@ -41,6 +40,11 @@ void KalmanFilter::Update(const VectorXd &z) {
   // Update
   x_ = x_ + K*y;
   P_ = (I - K*H_)*P_;
+}
+
+void KalmanFilter::Update(const VectorXd &z) {
+  VectorXd y = z - H_*x_;
+  DoUpdate(y);
 }
 
 void KalmanFilter::UpdateEKF(const VectorXd &z) {
@@ -57,21 +61,11 @@ void KalmanFilter::UpdateEKF(const VectorXd &z) {
   else{
     ro_dot = (x_(0)*x_(2) + x_(1)*x_(3))/ro;
   }
-  hx << ro, theta, ro_dot;
 
+  hx << ro, theta, ro_dot;
   VectorXd y = z - hx;
   // Angle normalization --> [-pi; pi]
   y[1] = atan2(sin(y[1]), cos(y[1]));
 
-  MatrixXd Ht = H_.transpose();
-  MatrixXd S = H_*P_*Ht + R_;
-  MatrixXd Si = S.inverse();
-  MatrixXd PHt = P_*Ht;
-  MatrixXd K = PHt*Si;
-  long x_size = x_.size();
-  MatrixXd I = MatrixXd::Identity(x_size, x_size);
-
-  // Update
-  x_ = x_ + K*y;
-  P_ = (I - K*H_)*P_;
+  DoUpdate(y);
 }
