@@ -6,7 +6,7 @@
 
 ![EKF results](https://user-images.githubusercontent.com/4352286/37216750-98d790d6-2389-11e8-8568-9a71ca54b5cc.png)
 
-The goal of this project is to use a kalman filter to estimate the state of a moving object of interest with noisy lidar and radar measurements. The system will output the estimated x, y position from the Kalman filter's state vector, along with the RMSE, to the simulator provided by Udacity. Passing the project requires obtaining RMSE values that are lower than the tolerance outlined in the project rubric.
+The goal of this project is to use an Extended Kalman Filter to estimate the state of a moving object of interest with noisy lidar and radar measurements. The system will output the estimated x, y position from the Kalman filter's state vector, along with the RMSE, to the simulator provided by Udacity. Passing the project requires obtaining RMSE values that are lower than the tolerance outlined in the project rubric.
 
 ## Overview
 Starting to work on this project consists of the following steps:
